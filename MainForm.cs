@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
 using System.Threading;
@@ -28,6 +31,8 @@ namespace ExampleApplications
             meaTest = new MeaTest(serialPortMeaTest);
             Initialize_COM_Ports();
             Initialize_Baudrates();
+            string a = meaTest.PaceVolt(Channel.Ch1, "24");
+            Console.WriteLine(a);
         }
         public void Initialize_COM_Ports()
         {
@@ -148,8 +153,7 @@ namespace ExampleApplications
         public void CheckFlagMeaTest()
         {
             StartCommunicationButtonState(ButtonState.TryingToConnect);
-            receivedAns = meaTest.CheckFlag();
-            if (receivedAns == true)
+            if (meaTest.CheckIdn() == true)
             {
                 StartCommunicationButtonState(ButtonState.Started);
                 meaTest.SetSystRem();
@@ -173,6 +177,7 @@ namespace ExampleApplications
         {
             if(MeaTestOperStateSwitch.Value == true)
             {
+                //meaTest.SetOutpStat(true);
                 labelOperationCaution.TextAlign = ContentAlignment.MiddleCenter;
                 labelOperationCaution.Text = "CAUTION!\nENERGY ON";
             }

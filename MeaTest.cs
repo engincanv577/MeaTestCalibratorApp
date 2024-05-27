@@ -1,7 +1,9 @@
-﻿using Microsoft.Win32;
-using System;
+﻿using System;
+using System.Globalization;
 using System.IO.Ports;
-using System.Windows.Forms;
+using System.Numerics;
+using static ExampleApplications.MeaTest;
+using static System.Windows.Forms.AxHost;
 
 namespace ExampleApplications
 {
@@ -10,96 +12,268 @@ namespace ExampleApplications
         public int[] validBaudrates = { 1200, 2400, 4800, 9600, 19200, 38400, 76800, 115200 };
 
         private SerialPort _serialPort;
+
+        private bool _serialWriteOnProcessFlag;
+        private bool _serialReadOnProcessFlag;
+        private string _readData;
+
+        private string _meaTestM133C_IdnCode = "MEATEST,M133C,100002,1.22";     // MeaTest M133C Identification Code
+        /****************************************************************** DEVICE COMMANDS ******************************************************************/
+        /* If you want to get detailed information about the commands please follow regarding link: https://www.meatest.com/files/download/man/m133cm_32.pdf */
+
+        // General commands
+        private string _getIdn = "*IDN?";
+        private string _getOpc = "*OPC?";
+        private string _setOpc = "*OPC";
+        private string _getOpt = "*OPT?";
+        private string _setWAI = "*WAI";
+        private string _setRST = "*RST";
+        private string _getTST = "*TST?";
+        private string _getSTB = "*STB?";
+        private string _getSRE = "*SRE?";
+        private string _setSRE = "*SRE "; //+<value>
+        private string _getESR = "*ESR?";
+        private string _getESE = "*ESE?";
+        private string _setESE = "*ESE "; //+<value>
+        private string _setCLS = "*CLS";
+
+
+        // INPut subsystem commands
+        public bool InpFilt(bool stat) => stat ? WriteReadLnSerialAnsComp($"INP:FILT(?) ON", "1") : WriteReadLnSerialAnsComp("INP:FILT(?) OFF", "0");
+        public string InpFilt() => WriteReadLnSerialFlagChecked("INP:FILT?");
+        public bool InpPull(InpPulls inpPull)
+        {
+            if (inpPull == InpPulls.OFF)
+            {
+                return WriteReadLnSerialAnsComp("INP:PULL(?) OFF", "OFF");
+            }
+            else if (inpPull == InpPulls.R150)
+            {
+                return WriteReadLnSerialAnsComp("INP:PULL(?) 150", "150");
+            }
+            else
+            {
+                // R1000
+                return WriteReadLnSerialAnsComp("INP:PULL(?) 1K", "1K");
+            }
+        }
+        public string InpPull() => WriteReadLnSerialFlagChecked("INP:PULL?");
+        // OUTPut subsystem commands
+        public bool OutpStat(OutpStats outpStat) => WriteReadLnSerialAnsComp($"OUTP(?) {outpStat}", $"{outpStat}");
+        public string OutpStat() => WriteReadLnSerialFlagChecked("OUTP?");
+        public bool OutpLowv(OutpLows outpLow) => WriteReadLnSerialAnsComp($"OUTP:LOWV(?) {outpLow}", $"{outpLow}");
+        public string OutpLowv() => WriteReadLnSerialFlagChecked("OUTP:LOWV?");
+        public bool OutpLowc(OutpLows outpLow) => WriteReadLnSerialAnsComp($"OUTP:LOWC(?) {outpLow}", $"{outpLow}");
+        public string OutpLowc() => WriteReadLnSerialFlagChecked("OUTP:LOWC?");
+        public bool OutpPhasUnit(OutpPhasUnits outpPhasUnit) => WriteReadLnSerialAnsComp($"OUTP:UNIT(?) {outpPhasUnit}", $"{outpPhasUnit}");
+        public string OutpPhasUnit() => WriteReadLnSerialFlagChecked("OUTP:UNIT?");
+        public bool OutpCurc(OutpCurcs outpCurc) => WriteReadLnSerialAnsComp($"OUTP:CURC(?) {outpCurc}", $"{outpCurc}");
+        public string OutpCurc() => WriteReadLnSerialFlagChecked("OUTP:CURC?");
+        public bool OutpSync(OutpSyncs outpSync) => WriteReadLnSerialAnsComp($"OUTP:SYNC(?) {outpSync}", $"{outpSync}");
+        public string OutpSync() => WriteReadLnSerialFlagChecked("OUTP:SYNC?");
+        public string OutpSyncLock() => WriteReadLnSerialFlagChecked("OUTP:SYNC:LOCK?");
+        public bool OutpEnerUnit(OutpEnerUnits outpEnerUnit) => WriteReadLnSerialAnsComp($"OUTP:ENER:UNIT(?) {outpEnerUnit}", $"{outpEnerUnit}");
+        public string OutpEnerUnit() => WriteReadLnSerialFlagChecked("OUTP:ENER:UNIT?");
+        public bool OutpEnerMVol(bool stat) => stat ? WriteReadLnSerialAnsComp("OUTP:ENER:MVOL(?) 1", "1") : WriteReadLnSerialAnsComp("OUTP:ENER:MVOL(?) 0", "0");
+        public string OutpEnerMVol() => WriteReadLnSerialFlagChecked("OUTP:ENER:MVOL?");
+        public bool OutpRefPull(bool R150) => R150 ? WriteReadLnSerialAnsComp("OUTP:REF:PULL(?) 1", "1") : WriteReadLnSerialAnsComp("OUTP:REF:PULL(?) 0", "0");
+        public string OutpRefPull() => WriteReadLnSerialFlagChecked("OUTP:REF:PULL?");
+        // OutpRefCons default value is 1000.0i/kWh
+        public bool OutpRefCons(string val) => WriteReadLnSerialAnsComp($"OUTP:REF:CONS(?) {val}", $"{val}");
+        public string OutpRefCons() => ExpToIntStr(WriteReadLnSerialFlagChecked("OUTP:REF:CONS?"));
+        public bool OutpRefUnit(PowUnits powUnit) => WriteReadLnSerialAnsComp($"OUTP:REF:UNIT(?) {powUnit}", $"{powUnit}");
+        public string OutpRefUnit() => WriteReadLnSerialFlagChecked("OUTP:REF:UNIT?");
+        public bool OutpMHarUnit(OutpMHarUnits outpMHarUnit) => WriteReadLnSerialAnsComp($"OUTP:MHAR:UNIT(?) {outpMHarUnit}", $"{outpMHarUnit}");
+        public string OutpMHarUnit() => WriteReadLnSerialFlagChecked("OUTP:MHAR:UNIT?");
+
+        private string _setOutpConf = "OUTP:CONF(?) "; //+<value>          
+        private string _getOutpConf = "OUTP:CONF?";
+        private string _setOutpL280 = "OUTP:L280(?) "; //+<value>          
+        private string _getOutpL280 = "OUTP:L280?";
+
+
+        // MEASure a CONFigure subsystem
+        private string _getMeas = "MEAS?";
+        private string _getConf = "CONF?";
+        private string _setConf = "CONF(?) "; //+<value> 
+
+
+        /****************** SOURce subsystem ******************/
+
+        // SOUR PAC (Power AC Mode)
+        // The commands below will switch the calibrator to Power AC Mode
+        private string _setPacPow = "PAC:POW(?) "; //+<value>      
+        private string _getPacPow = "PAC:POW?";
+        private string _setPacPowUnit = "PAC:UNIT(?) "; //+<value> 
+        private string _getPacPowUnit = "PAC:UNIT?";
+        private string _setPacVolt = "PAC:VOLT(?) "; //+<value>    
+        private string _getPacVolt = "PAC:VOLT?";
+        private string _setPacCurr = "PAC:CURR(?) "; //+<value>    
+        private string _getPacCurr = "PAC:CURR?";
+        private string _setPacPhas = "PAC:PHAS(?) "; //+<value>    
+        private string _getPacPhas = "PAC:PHAS?";
+        private string _setPacPol = "PAC:POL(?) "; //+<value>      
+        private string _getPacPol = "PAC:POL?";
+        private string _setPacFreq = "PAC:FREQ(?) "; //+<value>    
+        private string _getPacFreq = "PAC:FREQ?";
+
+        // SOUR PDC (Power DC Mode)
+        // The commands below will switch the calibrator to Power DC Mode
+        private string _setPdcPow = "PDC:POW(?) "; //+<value>   
+        private string _getPdcPow = "PDC:POW?";
+        private string _setPdcVolt = "PDC:VOLT(?) "; //+<value> 
+        private string _getPdcVolt = "PDC:VOLT?";
+        private string _setPdcCurr = "PDC:CURR(?) "; //+<value> 
+        private string _getPdcCurr = "PDC:CURR?";
+
+        // SOUR PACI (Power AC High Current Mode)
+        // The commands below will switch the calibrator to Power AC High Current Mode
+        private string _setPaciPow = "PACI:POW(?) "; //+<value>        
+        private string _getPaciPow = "PACI:POW?";
+        private string _setPaciPowUnit = "PACI:UNIT(?) "; //+<value>   
+        private string _getPaciPowUnit = "PACI:UNIT?";
+        private string _setPaciVolt = "PACI:VOLT(?) "; //+<value>      
+        private string _getPaciVolt = "PACI:VOLT?";
+        private string _setPaciCurr = "PACI:CURR(?) "; //+<value>      
+        private string _getPaciCurr = "PACI:CURR?";
+        private string _setPaciPhas = "PACI:PHAS(?) "; //+<value>      
+        private string _getPaciPhas = "PACI:PHAS?";
+        private string _setPaciPol = "PACI:POL(?) "; //+<value>        
+        private string _getPaciPol = "PACI:POL?";
+        private string _setPaciFreq = "PACI:FREQ(?)"; //+<value>       
+        private string _getPaciFreq = "PACI:FREQ?";
+
+        // SOUR PDCI (Power DC High Current Mode)
+        // The commands below will switch the calibrator to Power DC High Current Mode
+        private string _setPdciPow = "PDCI:POW(?) "; //+<value>               
+        private string _getPdciPow = "PDCI:POW?";
+        private string _setPdciVolt = "PDCI:VOLT(?) "; //+<value>             
+        private string _getPdciVolt = "PDCI:VOLT?";
+        private string _setPdciCurr = "PDCI:CURR(?) "; //+<value>             
+        private string _getPdciCurr = "PDCI:CURR?";
+
+        // SOUR PACE (Power AC Extended Mode)
+        // The commands below will switch the calibrator to Power AC Extended Mode
+        public string PacePow = "PACE:POW?";
+        public string _pacePowUnit(OperType oper) => oper == OperType.Set ? "PACE:UNIT(?) " : "PACE:UNIT?";
+        public string PacePowUnit() => "PACE:UNIT?";
+        public bool PacePowUnit(PowUnits powUnit) => WriteReadLnSerialAnsComp($"PACE:UNIT(?) {powUnit}", ExpToIntStr(powUnit.ToString()));
+        public string PaceVolt(Channel ch) => WriteReadLnSerialFlagChecked($"PACE:VOLT{(int)ch}?");
+        public string PaceVolt(Channel ch, string value) => $"PACE:VOLT{(int)ch}(?) {value}";
+        public string PaceVoltPhas(Channel ch) => $"PACE:VOLT{(int)ch}:PHAS?";
+        public string PaceVoltPhas(Channel ch, string value) => $"PACE:VOLT{(int)ch}:PHAS(?) {value}";
+        public string PaceVoltEnab(Channel ch) => $"PACE:VOLT{(int)ch}:ENAB?";
+        public string PaceVoltEnab(Channel ch, OutpStats stat) => $"PACE:VOLT{(int)ch}:ENAB(?) {stat}";
+
+
+
+        // SYSTem subsystem commands
+        private string _setSystDate = "SYST:DATE(?) "; //+<value>              
+        private string _getSystDate = "SYST:DATE?";
+        private string _setSystTime = "SYST:TIME(?) "; //+<value>              
+        private string _getSystTime = "SYST:TIME?";
+        private string _getSystErr = "SYST:ERR?";
+        private string _setSystRem = "SYST:REM";
+        private string _setSystLoc = "SYST:LOC";
+        private string _setSystRwl = "SYST:RWL";
+
+        // STATus subsystem commands
+        private string _getStatOperEven = "STAT:OPER:EVEN?";
+        private string _setStatOperEnab = "STAT:OPER:ENAB(?) "; //+<value>
+        private string _getStatOperEnab = "STAT:OPER:ENAB?";
+        private string _getStatOperCond = "STAT:OPER:COND?";
+        private string _getStatQuesEven = "STAT:QUES:EVEN?";
+        private string _setStatQuesEnab = "STAT:QUES:ENAB "; //+<value>   
+        private string _getStatQuesEnab = "STAT:QUES:ENAB?";
+        private string _getStatQuesCond = "STAT:QUES:COND?";
+        private string _setStatPres = "STAT:PRES";
+        public enum OutpMHarUnits
+        {
+            PRMS,
+            PFUN
+        }
+        public enum OutpSyncs
+        {
+            INT,
+            LINE,
+            IN1,
+            IN2,
+            IN3
+        }
+        public enum OutpCurcs
+        {
+            OFF,
+            X25,
+            X50
+        }
+        public enum OutpPhasUnits
+        {
+            DEG,
+            COS
+        }
+        public enum PowUnits
+        {
+            W,
+            VA,
+            VAR
+        }
+        public enum OperType
+        {
+            Get,
+            Set
+        }
+        public enum OutpStats
+        {
+            ON,
+            OFF
+        }
+        public enum InpPulls
+        {
+            OFF,
+            R150,
+            R1K
+        }
+        public enum OutpEnerUnits
+        {
+            WS,
+            WH
+        };
+        public enum Channel
+        {
+            Ch1 = 1,
+            Ch2 = 2,
+            Ch3 = 3
+        }
+        public enum OutpLows
+        {
+            FLO,
+            GRO
+        }
         public MeaTest(SerialPort serialPort)
         {
             _serialPort = serialPort;
-            _serialPort.BaudRate = 9600; //Default
+            /* Use a COM Port Name depends on your port connection
+            _serialPort.PortName = "COMx"; */
+            _serialPort.BaudRate = 9600;                                    // Default Baudrate (If you want to use a different baudrate you have to change calibrator's baudrate from physical panel firstly.)
             _serialPort.DataBits = 8;
             _serialPort.Parity = Parity.None;
             _serialPort.StopBits = StopBits.One;
             _serialPort.ReadTimeout = 1000;
             _serialPort.NewLine = "\r\n";                                   // <CR><LF> Is used for RS232
         }
-
-        private bool _serialWriteOnProcessFlag;
-        private bool _serialReadOnProcessFlag;
-        private string _readData;
-
-        private string _meaTestM133C_FlagCode = "MEATEST,M133C,100002,1.22";     // MeaTest M133C Flag Code
-
-        /****************************************************************** DEVICE COMMANDS ******************************************************************/
-        /* If you want to get detailed information about the commands please follow regarding link: https://www.meatest.com/files/download/man/m133cm_32.pdf */
-
-        // General commands
-        private string _getFlag = "*IDN?";                                  //This command returns the identification of the manufacturer, model, serial number and firmware revision.
-        private string _setOpc = "*OPC";                                    //This command sets the OPC bit in the ESR (Event Status Register) when all pending operations are complete.
-        private string _getOpc = "*OPC?";                                   //This command returns “1” to the output queue after all pending operations are complete.
-        private string _getOpt = "*OPT?";                                   //This command return the instrument’s harware fitment.
-        private string _setWAI = "*WAI";                                    //Prevents the instrument from executing any further commands or queries until all previous remote commands have been executed.
-        private string _setRST = "*RST";                                    //This command resets the calibrator to its initial status.
-        private string _getTST = "*TST?";                                   //This command launches an internal self-test. Return the self-test result (“0” for pass or “1” for fail).
-        private string _getSTB = "*STB?";                                   //This query returns number in range 0 to 255 with information about content of register STB, which carries the MSS bit status
-        private string _setSRE = "*SRE "; //+<value>                        //This command sets condition of the Service Request Enable register. Since bit 6 is not used, the maximum value is 191.
-        private string _getSRE = "*SRE?";                                   //This query returns the Service Request Enable Register number.
-        private string _getESR = "*ESR?";                                   //This query returns the contents of the Event Status Register and clears the register.
-        private string _setESE = "*ESE "; //+<value>                        //This command programs the Event Status Enable register bits. Parameter “value” is number in range 0 – 255.
-        private string _getESE = "*ESE?";                                   //This query returns the Event Status Enable register.
-        private string _setCLS = "*CLS";                                    //This command clears the Event Status Register and the Status Byte Register except the MAV bit and output queue.Output line is not reset.
-
-        // INPut subsystem commands
-        private string _getInpFilt = "INP:FILT?";                           //If query is sent, calibrator returns state of the function { 0 | 1 }
-        private string _setInpFilt = "INP:FILT "; //+<value>                //This command connects the internal filter to the IN1. (INP:FILT (?) <CPD> { OFF | ON | 0 | 1 })
-        private string _getInpPull = "INP:PULL?";                           //If query is sent, calibrator returns connects resistor { OFF | 150 | 1K }.
-        private string _setInpPull = "INP:PULL "; //+<value>                //This command connects the internal pull-up resistor (150 Ω or 1 kΩ) to the IN1 (INP:PULL (?) <CPD> { OFF | 150 | 1K })
-        // OUTPut subsystem commands
-        private string _getOutpStat = "OUTP?";                              //Gets output status (Device returns "ON" or "OFF")
-        private string _setOutpStat = "OUTP ";                              //Sets output to operate mode. (ENERGY ON/OFF)
-        private string _getOutpLowv = "OUTP:LOWV?";                         //If query is sent, calibrator returns GRO when the output is grounded or FLO when floating.
-        private string _setOutpLowv = "OUTP:LOWV "; //+<value>              //This command connects or disconnects the Lo terminals of all voltage outputs to/from GND terminal (FLO or GRO)
-        private string _getOutpLowc = "OUTP:LOWC?";                         //If query is sent, calibrator returns GRO when the output is grounded or FLO when floating
-        private string _setOutpLowc = "OUTP:LOWC "; //+<value>              //This command connects or disconnects the Lo terminals of all current outputs to/from GND terminal. (FLO or GRO)
-        private string _getOutpPhasUnit = "OUTP:UNIT?";                     //If query is sent, calibrator returns the set unit of measurement { DEG | COS }
-        private string _setOutpPhasUnit = "OUTP:UNIT "; //+<value>          //This command sets the method used to specify the phase shift between the output voltage and current.
-    /*******Continue here******/
-        private string _getOutpEnerUnit = "OUTP:ENER:UNIT?";                //Gets output energy unit
-        private string _setOutpEnerUnit = "OUTP:ENER:UNIT "; //+<value>     //Sets output energy unit to Ws or Wh
-        
-
-        // SYSTem subsystem commands
-        private string _setSystDate = "SYST:DATE ";                         //This command sets system date of the calibrator. (Example format: "SYST:DATE YYYY,MM,DD")
-        private string _getSystDate = "SYST:DATE?";                         //This command gets system date of the calibrator. (Example format: "YYYY,MM,DD")
-        private string _setSystTime = "SYST:TIME ";                         //This command sets time of the calibrator. (Example format: "SYST:TIME HH,MM,SS")
-        private string _getSystTime = "SYST:TIME?";                         //This command gets time of the calibrator. (Example format: "HH,MM,SS")
-        private string _getSystErr = "SYST:ERR?";                           //Query the multimeter’s error queue. Detected errors are placed in the queue. This query returns the first error from the queue.
-        private string _setSystRem = "SYST:REM";                            //Sets system remote to send RS232 commands (Can change system to local with device physical panel if this command sent)
-        private string _setSystRwl = "SYST:RWL";                            //Sets system remote to send RS232 commands (Can not change system to local with device physical panel if this command sent)
-        private string _setSystLoc = "SYST:LOC";                            //Sets system local (Can not send RS232 commands if device set to local)
-
-        // STATus subsystem commands
-        private string _getStatOperEven = "STAT:OPER:EVEN?";                //This query returns the content of Operational Data Event register. It is a decimal value which corresponds to the binary-weighted sum of all bits set in the register.Register is cleared after this query.
-        private string _setStatOperEnab = "STAT:OPER:ENAB "; //+<value>     //This command enables bits in the Operational Data Enable register. Selected bits are summarized at bit 7 (OSS) of the IEEE488.2 Status Byte register.
-        private string _getStatOperEnab = "STAT:OPER:ENAB?";                //If query is sent, calibrator returns the value of the registr as a decimal number.
-        private string _getStatOperCond = "STAT:OPER:COND?";                //This query returns the content of Operational Condition register.
-        private string _getStatQuesEven = "STAT:QUES:EVEN?";                //This query returns the content of Questionable Data Event register.
-        private string _setStatQuesEnab = "STAT:QUES:ENAB "; //+<value>     //This command enables bits in the Questionable Data Enable register. Selected bits are summarized at bit 3 (QSS) of the IEEE488.2 Status Byte register.
-        private string _getStatQuesEnab = "STAT:QUES:ENAB?";                //If query is sent, calibrator returns the value of the registr as a decimal number. Example: 64 is returned as 64.
-        private string _getStatQuesCond = "STAT:QUES:COND?";                //This query returns the content of Questionable Condition register.
-        private string _setStatPres = "STAT:PRES";                          //This command clears all bits in the Operation Data Enable register and in the Questionable Data Enable register.
-
-
-
-        public enum InpPull
+        private string ExpToIntStr(string expStr)
         {
-            Off,
-            R150,
-            R1K
+            if (decimal.TryParse(expStr, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal decimalValue))
+            {
+                BigInteger bigIntValue = new BigInteger(decimalValue);
+
+                return bigIntValue.ToString();
+            }
+            else
+            {
+                throw new FormatException("The provided string is not a valid exponential format.");
+            }
         }
-        public enum EnerUnits
-        {
-            WS,
-            WH
-        };
-        
         private void WriteLineSerialPort(string command)
         {
             if (_serialPort.IsOpen)
@@ -117,24 +291,24 @@ namespace ExampleApplications
                     }
                     _serialWriteOnProcessFlag = false;
                 }
+                else
+                {
+                    Console.WriteLine("Serial write on process!");
+                }
             }
         }
         private void WriteLineSerialPortFlagChecked(string command)
         {
-            if(CheckFlag() == true)
+            if (CheckIdn() == true)
             {
                 WriteLineSerialPort(command);
             }
-            else 
-            {
-                MessageBox.Show("Flag Error");
-            }
         }
-        private bool WriteReadLineSerialPortFlagChecked(string setValCommand, string getValCommand, string answer)
+
+        private bool WriteReadLnSerialAnsComp(string setValCmd, string ans)
         {
-            WriteLineSerialPortFlagChecked(setValCommand);
-            WriteLineSerialPortFlagChecked(getValCommand);
-            if (answer == ReadLineSerialPort())
+            WriteLineSerialPortFlagChecked(setValCmd);
+            if (ans == ReadLineSerialPort())
             {
                 return true;
             }
@@ -143,9 +317,14 @@ namespace ExampleApplications
                 return false;
             }
         }
+        private string WriteReadLnSerialFlagChecked(string setValCmd)
+        {
+            WriteLineSerialPortFlagChecked(setValCmd);
+            return ReadLineSerialPort();
+        }
         private string ReadLineSerialPort()
         {
-            if(_serialPort.IsOpen)
+            if (_serialPort.IsOpen)
             {
                 if (_serialReadOnProcessFlag == false)
                 {
@@ -162,20 +341,25 @@ namespace ExampleApplications
                         return null;
                     }
                 }
+                else
+                {
+                    Console.WriteLine("Serial read on process!");
+                }
             }
             return null;
         }
-        public bool CheckFlag()
+        public bool CheckIdn()
         {
             try
             {
-                WriteLineSerialPort(_getFlag);
-                if (ReadLineSerialPort() == _meaTestM133C_FlagCode)
+                WriteLineSerialPort(_getIdn);
+                if (ReadLineSerialPort() == _meaTestM133C_IdnCode)
                 {
                     return true;
                 }
                 else
                 {
+                    Console.WriteLine("Flag Error!");
                     _serialPort.Close();
                     return false;
                 }
@@ -185,66 +369,6 @@ namespace ExampleApplications
                 _serialPort.Close();
                 return false;
             }
-        }
-        public void SetSystRem()
-        {
-            WriteLineSerialPortFlagChecked(_setSystRem);
-        }
-        public void SetSystRwl()
-        {
-            WriteLineSerialPortFlagChecked(_setSystRwl);
-        }
-        public void SetSystLoc()
-        {
-            WriteLineSerialPortFlagChecked(_setSystLoc);
-        }
-        public bool SetOutpStat(bool outpStat)
-        {
-            if(outpStat)
-            {
-                if(WriteReadLineSerialPortFlagChecked(_setOutpStat + "ON", _getOutpStat, "ON"))
-                {
-                    return true;
-                }
-                else { return false; }
-            }
-            else
-            {
-                if (WriteReadLineSerialPortFlagChecked(_setOutpStat + "OFF", _getOutpStat, "OFF"))
-                {
-                    return true;
-                }
-                else { return false; }
-            }
-        }
-        public string GetOutpStat(bool state)
-        {
-            WriteLineSerialPortFlagChecked(_getOutpStat);
-            return ReadLineSerialPort();
-        }
-        public bool SetOutpEnerUnit(EnerUnits enerUnit)
-        {
-            if(enerUnit == EnerUnits.WS)
-            {
-                if (WriteReadLineSerialPortFlagChecked(_setOutpEnerUnit + "WS", _getOutpEnerUnit, "WS"))
-                {
-                    return true;  
-                }
-                else { return false; }
-            }
-            else
-            {
-                if (WriteReadLineSerialPortFlagChecked(_setOutpEnerUnit + "WH", _getOutpEnerUnit, "WH"))
-                {
-                    return true;
-                }
-                else { return false; }
-            }
-        }
-        public string GetOutpEnerUnit()
-        {
-            WriteLineSerialPortFlagChecked(_getOutpEnerUnit);
-            return ReadLineSerialPort();
         }
     }
 }
