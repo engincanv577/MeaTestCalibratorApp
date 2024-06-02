@@ -4,7 +4,7 @@ using System.IO.Ports;
 
 namespace MeaTestCalibratorApp
 {
-    public sealed class MeaTest
+    public sealed class MeaTest_M133_C
     {
         private string _meaTestM133C_IdnCode = "MEATEST,M133C,100002,1.22";     // MeaTest M133C Identification Code
         private int[] _validBaudrates = { 1200, 2400, 4800, 9600, 19200, 38400, 76800, 115200 };
@@ -14,7 +14,7 @@ namespace MeaTestCalibratorApp
         private string _readData;
         private SerialPort _serialPort;
 
-        public MeaTest(SerialPort serialPort)
+        public MeaTest_M133_C(SerialPort serialPort)
         {
             _serialPort = serialPort;
             /* Use a COM Port Name depends on your port connection
