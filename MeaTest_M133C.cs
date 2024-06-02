@@ -44,39 +44,46 @@ namespace MeaTestCalibratorApp
             ONE,
             REP
         }
+
         public enum TrigInps
         {
             OFF,
             IN3
         }
+
         public enum ModShaps
         {
             OFF,
             SIN,
             RECT
         }
+
         public enum AcPols
         {
             LEAD,
             LAG
         }
+
         public enum Confs
         {
             VOLT,
             CURR,
             FREQ
         }
+
         public enum OutpConfs
         {
             C1 = 1,
             C12 = 12,
             C123 = 123
         }
+
         public enum OutpMHarUnits
         {
             PRMS,
             PFUN
         }
+
         public enum OutpSyncs
         {
             INT,
@@ -85,50 +92,53 @@ namespace MeaTestCalibratorApp
             IN2,
             IN3
         }
+
         public enum OutpCurcs
         {
             OFF,
             X25,
             X50
         }
+
         public enum OutpPhasUnits
         {
             DEG,
             COS
         }
+
         public enum PowUnits
         {
             W,
             VA,
             VAR
         }
-        public enum OperType
-        {
-            Get,
-            Set
-        }
+
         public enum OutpStats
         {
             ON,
             OFF
         }
+
         public enum InpPulls
         {
             OFF,
             R150,
             R1K
         }
+
         public enum OutpEnerUnits
         {
             WS,
             WH
-        };
-        public enum Channel
+        }
+
+        public enum Channels
         {
             Ch1 = 1,
             Ch2 = 2,
             Ch3 = 3
         }
+
         public enum OutpLows
         {
             FLO,
@@ -146,26 +156,47 @@ namespace MeaTestCalibratorApp
                 throw new FormatException("The provided string is not a valid exponential format.");
             }
         }
-        private void WriteLnSerial(string command)
+        private bool WriteLnSerial(string command)
         {
+            if (_serialWriteOnProcessFlag)
+            {
+                Console.WriteLine("Serial write on process!");
+                return false;
+            }
+
             if (_serialPort.IsOpen)
             {
-                if (_serialWriteOnProcessFlag == false)
-                {
-                    _serialWriteOnProcessFlag = true;
-                    try
-                    {
-                        _serialPort.WriteLine(command);
-                    }
-                    catch (Exception)
-                    {
+                Console.WriteLine("Failed to open serial port.");
+                return false;
+            }
 
-                    }
-                    _serialWriteOnProcessFlag = false;
-                }
-                else
+            try
+            {
+                _serialPort.Open();
+            }
+            catch 
+            {
+                return false;
+            }
+
+            _serialWriteOnProcessFlag = true;
+
+            try
+            {
+                _serialPort.WriteLine(command);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred during serial write: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                _serialWriteOnProcessFlag = false;
+                if (_serialPort.IsOpen)
                 {
-                    Console.WriteLine("Serial write on process!");
+                    _serialPort.Close();
                 }
             }
         }
@@ -203,11 +234,13 @@ namespace MeaTestCalibratorApp
                 }
             }
         }
+
         private string WriteReadLnSerial(string setValCmd)
         {
             WriteLnSerial(setValCmd);
             return ReadLnSerial();
         }
+
         private string WriteReadLnSerialIdnChecked(string setValCmd, bool ansExp)
         {
             WriteLnSerialIdnChecked(setValCmd);
@@ -220,50 +253,60 @@ namespace MeaTestCalibratorApp
                 return ReadLnSerial();
             }
         }
+
         private string ReadLnSerial()
         {
+            if (_serialReadOnProcessFlag)
+            {
+                Console.WriteLine("Serial read on process!");
+                return null;
+            }
             if (_serialPort.IsOpen)
             {
-                if (_serialReadOnProcessFlag == false)
-                {
-                    _serialReadOnProcessFlag = true;
-                    try
-                    {
-                        _readData = _serialPort.ReadLine();
-                        _serialReadOnProcessFlag = false;
-                        return _readData;
-                    }
-                    catch (Exception)
-                    {
-                        _serialReadOnProcessFlag = false;
-                        return null;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Serial read on process!");
-                }
+                return null;
             }
-            return null;
-        }
-        public bool CheckIdn()
-        {
+
             try
             {
-                if (Idn() == _meaTestM133C_IdnCode)
-                {
-                    return true;
-                }
-                else
-                {
-                    Console.WriteLine("Identification Error!");
-                    _serialPort.Close();
-                    return false;
-                }
+                _serialPort.Open();
             }
             catch (Exception)
             {
-                _serialPort.Close();
+                Console.WriteLine("Failed to open serial port.");
+                return null;
+            }
+
+            _serialReadOnProcessFlag = true;
+
+            try
+            {
+                _readData = _serialPort.ReadLine();
+                return _readData;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred during serial read: {ex.Message}");
+                return null;
+            }
+            finally
+            {
+                _serialReadOnProcessFlag = false;
+                if (_serialPort.IsOpen)
+                {
+                    _serialPort.Close();
+                }
+            }
+        }
+
+        public bool CheckIdn()
+        {
+            if (Idn() == _meaTestM133C_IdnCode)
+            {
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Identification Error!");
                 return false;
             }
         }
@@ -405,68 +448,68 @@ namespace MeaTestCalibratorApp
         public string PacePow() => WriteReadLnSerialIdnChecked("PACE:POW?", true);
         public bool PacePowUnit(PowUnits powUnit) => WriteReadLnSerialAnsComp($"PACE:UNIT(?) {powUnit}", $"{powUnit}", false);
         public string PacePowUnit() => WriteReadLnSerialIdnChecked("PACE:UNIT?", false);
-        public bool PaceVolt(Channel ch, float val) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?) {val}", $"{val}", true);
-        public string PaceVolt(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}?", true);
-        public bool PaceVoltPhas(Channel ch, float val) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?):PHAS(?) {val}", $"{val}", true);
-        public string PaceVoltPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}:PHAS?", true);
-        public bool PaceVoltEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?):ENAB(?) {stat}", $"{stat}", false);
-        public string PaceVoltEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}:ENAB?", false);
-        public bool PaceCurr(Channel ch, float val) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}(?) {val}", $"{val}", true);
-        public string PaceCurr(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}?", true);
-        public bool PaceCurrPhas(Channel ch, uint val) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PaceCurrPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:CURR{(uint)ch}:PHAS?", true);
-        public bool PaceCurrEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PaceCurrEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PACE:CURR{(uint)ch}:ENAB?", true);
+        public bool PaceVolt(Channels ch, float val) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?) {val}", $"{val}", true);
+        public string PaceVolt(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}?", true);
+        public bool PaceVoltPhas(Channels ch, float val) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?):PHAS(?) {val}", $"{val}", true);
+        public string PaceVoltPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}:PHAS?", true);
+        public bool PaceVoltEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PACE:VOLT{(uint)ch}(?):ENAB(?) {stat}", $"{stat}", false);
+        public string PaceVoltEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}:ENAB?", false);
+        public bool PaceCurr(Channels ch, float val) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}(?) {val}", $"{val}", true);
+        public string PaceCurr(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:VOLT{(uint)ch}?", true);
+        public bool PaceCurrPhas(Channels ch, uint val) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PaceCurrPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:CURR{(uint)ch}:PHAS?", true);
+        public bool PaceCurrEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PACE:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PaceCurrEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PACE:CURR{(uint)ch}:ENAB?", true);
         public bool PaceFreq(uint val) => WriteReadLnSerialAnsComp($"PACE:FREQ(?) {val}", $"{val}", true);
         public string PaceFreq() => WriteReadLnSerialIdnChecked($"PACE:FREQ?", true);
 
         // SOUR PDCE (Power DC Extended Mode)
         // The commands below will switch the calibrator to Power DC Extended Mode
         public string PdcePow() => WriteReadLnSerialIdnChecked("PDCE:POW?", true);
-        public bool PdceVolt(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDCE:VOLT{(uint)ch}(?) {val}", $"{val}", true);
-        public string PdceVolt(Channel ch) => WriteReadLnSerialIdnChecked($"PDCE:VOLT{(uint)ch}?", true);
-        public bool PdceVoltEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDCE:VOLT{(uint)ch}(?) {stat}", $"{stat}", false);
-        public string PdceVoltEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PDCE:VOLT{(uint)ch}:ENAB?", false);
-        public bool PdceCurr(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDCE:CURR{(uint)ch}(?) {val}", $"{val}", true);
-        public string PdceCurr(Channel ch) => WriteReadLnSerialIdnChecked($"PDCE:CURR{(uint)ch}?", true);
-        public bool PdceCurrEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDCE:CURR{(uint)ch}(?) {stat}", $"{stat}", false);
-        public string PdceCurrEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PDCE:CURR{(uint)ch}:ENAB?", false);
+        public bool PdceVolt(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDCE:VOLT{(uint)ch}(?) {val}", $"{val}", true);
+        public string PdceVolt(Channels ch) => WriteReadLnSerialIdnChecked($"PDCE:VOLT{(uint)ch}?", true);
+        public bool PdceVoltEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDCE:VOLT{(uint)ch}(?) {stat}", $"{stat}", false);
+        public string PdceVoltEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PDCE:VOLT{(uint)ch}:ENAB?", false);
+        public bool PdceCurr(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDCE:CURR{(uint)ch}(?) {val}", $"{val}", true);
+        public string PdceCurr(Channels ch) => WriteReadLnSerialIdnChecked($"PDCE:CURR{(uint)ch}?", true);
+        public bool PdceCurrEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDCE:CURR{(uint)ch}(?) {stat}", $"{stat}", false);
+        public string PdceCurrEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PDCE:CURR{(uint)ch}:ENAB?", false);
 
         // SOUR PHAR (Power Harmonic Mode)
         // The commands below will switch the calibrator to Power Harmonic Mode
         public string PharPow() => WriteReadLnSerialIdnChecked("PHAR:POW?", true);
-        public bool PharVolt(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}(?) {val}", $"{val}", true);
-        public string PharVolt(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}?", true);
-        public bool PharVoltPhas(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}(?):PHAS(?) {val}", $"{val}", true);
-        public string PharVoltPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:PHAS?", true);
-        public bool PharVoltEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PharVoltEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:ENAB?", false);
-        public bool PharVoltHarm(Channel ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}(?) {val}", $"{val}", true);     // Harmonic order range (2 to 50)
-        public string PharVoltHarm(Channel ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}?", true);             // Harmonic order range (1 to 50)
-        public bool PharVoltHarmPhas(Channel ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}:PHAS(?) {val}", $"{val}", true);
-        public string PharVoltHarmPhas(Channel ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}:PHAS?", true);
-        public bool PharVoltMod(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD(?) {val}", $"{val}", true);
-        public string PharVoltMod(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD?", true);
-        public bool PharVoltModShap(Channel ch, ModShaps modShap) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD:SHAP(?) {modShap}", $"{modShap}", false);
-        public string PharVoltModShap(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD?", true);
-        public bool PharVoltModDuty(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD:DUTY(?) {val}", $"{val}", true);
-        public string PharVoltModDuty(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD:DUTY?", true);
-        public bool PharCurr(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}(?) {val}", $"{val}", true);
-        public string PharCurr(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}?", true);
-        public bool PharCurrPhas(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PharCurrPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:PHAS?", true);
-        public bool PharCurrEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PharCurrEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:ENAB?", false);
-        public bool PharCurrHarm(Channel ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:HARM{harmOrder}(?) {val}", $"{val}", true);     // Harmonic order range (2 to 50)
-        public string PharCurrHarm(Channel ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:HARM{harmOrder}?", true);             // Harmonic order range (1 to 50)
-        public bool PharCurrHarmPhas(Channel ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:HARM{harmOrder}:PHAS(?) {val}", $"{val}", true);
-        public string PharCurrHarmPhas(Channel ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:HARM{harmOrder}:PHAS?", true);
-        public bool PharCurrMod(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD(?) {val}", $"{val}", true);
-        public string PharCurrMod(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD?", true);
-        public bool PharCurrModShap(Channel ch, ModShaps modShap) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD:SHAP(?) {modShap}", $"{modShap}", false);
-        public string PharCurrModShap(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD?", false);
-        public bool PharCurrModDuty(Channel ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD:DUTY(?) {val}", $"{val}", true);
-        public string PharCurrModDuty(Channel ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD:DUTY?", true);
+        public bool PharVolt(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}(?) {val}", $"{val}", true);
+        public string PharVolt(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}?", true);
+        public bool PharVoltPhas(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}(?):PHAS(?) {val}", $"{val}", true);
+        public string PharVoltPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:PHAS?", true);
+        public bool PharVoltEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PharVoltEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:ENAB?", false);
+        public bool PharVoltHarm(Channels ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}(?) {val}", $"{val}", true);     // Harmonic order range (2 to 50)
+        public string PharVoltHarm(Channels ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}?", true);             // Harmonic order range (1 to 50)
+        public bool PharVoltHarmPhas(Channels ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}:PHAS(?) {val}", $"{val}", true);
+        public string PharVoltHarmPhas(Channels ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:HARM{harmOrder}:PHAS?", true);
+        public bool PharVoltMod(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD(?) {val}", $"{val}", true);
+        public string PharVoltMod(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD?", true);
+        public bool PharVoltModShap(Channels ch, ModShaps modShap) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD:SHAP(?) {modShap}", $"{modShap}", false);
+        public string PharVoltModShap(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD?", true);
+        public bool PharVoltModDuty(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:VOLT{(uint)ch}:MOD:DUTY(?) {val}", $"{val}", true);
+        public string PharVoltModDuty(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:VOLT{(uint)ch}:MOD:DUTY?", true);
+        public bool PharCurr(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}(?) {val}", $"{val}", true);
+        public string PharCurr(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}?", true);
+        public bool PharCurrPhas(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PharCurrPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:PHAS?", true);
+        public bool PharCurrEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PharCurrEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:ENAB?", false);
+        public bool PharCurrHarm(Channels ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:HARM{harmOrder}(?) {val}", $"{val}", true);     // Harmonic order range (2 to 50)
+        public string PharCurrHarm(Channels ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:HARM{harmOrder}?", true);             // Harmonic order range (1 to 50)
+        public bool PharCurrHarmPhas(Channels ch, uint harmOrder, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:HARM{harmOrder}:PHAS(?) {val}", $"{val}", true);
+        public string PharCurrHarmPhas(Channels ch, uint harmOrder) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:HARM{harmOrder}:PHAS?", true);
+        public bool PharCurrMod(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD(?) {val}", $"{val}", true);
+        public string PharCurrMod(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD?", true);
+        public bool PharCurrModShap(Channels ch, ModShaps modShap) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD:SHAP(?) {modShap}", $"{modShap}", false);
+        public string PharCurrModShap(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD?", false);
+        public bool PharCurrModDuty(Channels ch, float val) => WriteReadLnSerialAnsComp($"PHAR:CURR{(uint)ch}:MOD:DUTY(?) {val}", $"{val}", true);
+        public string PharCurrModDuty(Channels ch) => WriteReadLnSerialIdnChecked($"PHAR:CURR{(uint)ch}:MOD:DUTY?", true);
         public bool PharFreq(uint val) => WriteReadLnSerialAnsComp($"PHAR:FREQ(?) {val}", $"{val}", true);
         public string PharFreq() => WriteReadLnSerialIdnChecked($"PHAR:FREQ?", true);
         public bool PharFreqMod(float val) => WriteReadLnSerialAnsComp($"PHAR:FREQ:MOD(?) {val}", $"{val}", true);
@@ -475,22 +518,22 @@ namespace MeaTestCalibratorApp
         // SOUR PIH (Power Interharmonic Mode)
         // The commands below will switch the calibrator to Power Interharmonic Mode
         public void Pih() => WriteLnSerialIdnChecked("PIH");
-        public bool PihVolt(Channel ch, float val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}(?) {val}", $"{val}", true);
-        public string PihVolt(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}?", true);
-        public bool PihVoltPhas(Channel ch, uint val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PihVoltPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:PHAS?", true);
-        public bool PihVoltEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PihVoltEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:ENAB?", false);
-        public bool PihVoltIhar(Channel ch, float val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:IHAR(?) {val}", $"{val}", true);
-        public string PihVoltIhar(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:IHAR?", true);
-        public bool PihCurr(Channel ch, float val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}(?) {val}", $"{val}", true);
-        public string PihCurr(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}?", true);
-        public bool PihCurrPhas(Channel ch, uint val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PihCurrPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:PHAS?", true);
-        public bool PihCurrEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PihCurrEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:ENAB?", true);
-        public bool PihCurrIhar(Channel ch, float val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:IHAR(?) {val}", $"{val}", true);
-        public string PihCurrIhar(Channel ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:IHAR?", true);
+        public bool PihVolt(Channels ch, float val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}(?) {val}", $"{val}", true);
+        public string PihVolt(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}?", true);
+        public bool PihVoltPhas(Channels ch, uint val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PihVoltPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:PHAS?", true);
+        public bool PihVoltEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PihVoltEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:ENAB?", false);
+        public bool PihVoltIhar(Channels ch, float val) => WriteReadLnSerialAnsComp($"PIH:VOLT{(uint)ch}:IHAR(?) {val}", $"{val}", true);
+        public string PihVoltIhar(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:VOLT{(uint)ch}:IHAR?", true);
+        public bool PihCurr(Channels ch, float val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}(?) {val}", $"{val}", true);
+        public string PihCurr(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}?", true);
+        public bool PihCurrPhas(Channels ch, uint val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PihCurrPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:PHAS?", true);
+        public bool PihCurrEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PihCurrEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:ENAB?", true);
+        public bool PihCurrIhar(Channels ch, float val) => WriteReadLnSerialAnsComp($"PIH:CURR{(uint)ch}:IHAR(?) {val}", $"{val}", true);
+        public string PihCurrIhar(Channels ch) => WriteReadLnSerialIdnChecked($"PIH:CURR{(uint)ch}:IHAR?", true);
         public bool PihFreq(uint val) => WriteReadLnSerialAnsComp($"PIH:FREQ(?) {val}", $"{val}", true);
         public string PihFreq() => WriteReadLnSerialIdnChecked($"PIH:FREQ?", true);
         public bool PihFreqIhar(uint val) => WriteReadLnSerialAnsComp($"PIH:FREQ:IHAR(?) {val}", $"{val}", true);
@@ -499,22 +542,22 @@ namespace MeaTestCalibratorApp
         // SOUR PDIP (Power Dip/Swell Mode)
         // The commands below will switch the calibrator to Power Dip/Swell Mode
         public void Pdip() => WriteLnSerialIdnChecked("PDIP");
-        public bool PdipVolt(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}(?) {val}", $"{val}", true);
-        public string PdipVolt(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}?", true);
-        public bool PdipVoltPhas(Channel ch, uint val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PdipVoltPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:PHAS?", true);
-        public bool PdipVoltEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PdipVoltEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:ENAB?", false);
-        public bool PdipVoltChan(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:CHAN(?) {val}", $"{val}", true);
-        public string PdipVoltChan(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:CHAN?", true);
-        public bool PdipCurr(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}(?) {val}", $"{val}", true);
-        public string PdipCurr(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}?", true);
-        public bool PdipCurrPhas(Channel ch, uint val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
-        public string PdipCurrPhas(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:PHAS?", true);
-        public bool PdipCurrEnab(Channel ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
-        public string PdipCurrEnab(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:ENAB?", false);
-        public bool PdipCurrChan(Channel ch, float val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:CHAN(?) {val}", $"{val}", true);
-        public string PdipCurrChan(Channel ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:CHAN?", true);
+        public bool PdipVolt(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}(?) {val}", $"{val}", true);
+        public string PdipVolt(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}?", true);
+        public bool PdipVoltPhas(Channels ch, uint val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PdipVoltPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:PHAS?", true);
+        public bool PdipVoltEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PdipVoltEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:ENAB?", false);
+        public bool PdipVoltChan(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDIP:VOLT{(uint)ch}:CHAN(?) {val}", $"{val}", true);
+        public string PdipVoltChan(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:VOLT{(uint)ch}:CHAN?", true);
+        public bool PdipCurr(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}(?) {val}", $"{val}", true);
+        public string PdipCurr(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}?", true);
+        public bool PdipCurrPhas(Channels ch, uint val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:PHAS(?) {val}", $"{val}", true);
+        public string PdipCurrPhas(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:PHAS?", true);
+        public bool PdipCurrEnab(Channels ch, OutpStats stat) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:ENAB(?) {stat}", $"{stat}", false);
+        public string PdipCurrEnab(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:ENAB?", false);
+        public bool PdipCurrChan(Channels ch, float val) => WriteReadLnSerialAnsComp($"PDIP:CURR{(uint)ch}:CHAN(?) {val}", $"{val}", true);
+        public string PdipCurrChan(Channels ch) => WriteReadLnSerialIdnChecked($"PDIP:CURR{(uint)ch}:CHAN?", true);
         public bool PdipFreq(uint val) => WriteReadLnSerialAnsComp($"PDIP:FREQ(?) {val}", $"{val}", true);
         public string PdipFreq() => WriteReadLnSerialIdnChecked($"PDIP:FREQ?", true);
         public bool PdipTime(string time) => WriteReadLnSerialAnsComp($"PDIP:TIME(?) {time}", $"{time}", true);
@@ -538,7 +581,7 @@ namespace MeaTestCalibratorApp
         public string EacVolt() => WriteReadLnSerialIdnChecked($"EAC:VOLT?", true);
         public bool EacCurr(float val) => WriteReadLnSerialAnsComp($"EAC:CURR(?) {val}", $"{val}", true);
         public string EacCurr() => WriteReadLnSerialIdnChecked($"EAC:CURR?", true);
-        public bool EacCurrPhas(float val) => WriteReadLnSerialAnsComp($"EAC:CURR:PHAS(?) {val}", $"{val}", true); // This command will return different value if (PHAS:UNIT == COS)
+        public bool EacCurrPhas(float val) => WriteReadLnSerialAnsComp($"EAC:CURR:PHAS(?) {val}", $"{val}", true); // This command will return different format if (PHAS:UNIT == COS)
         public string EacCurrPhas() => WriteReadLnSerialIdnChecked($"EAC:CURR:PHAS?", true);
         public bool EacCurrPol(AcPols pols) => WriteReadLnSerialAnsComp($"EAC:POL(?) {pols}", $"{pols}", true);
         public string EacCurrPol() => WriteReadLnSerialIdnChecked($"EAC:POL?", true);
