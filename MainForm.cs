@@ -7,7 +7,6 @@ using System.IO.Ports;
 using System.Threading;
 using System.Windows.Forms;
 using Telerik.WinControls.Enumerations;
-using static ExampleApplications.MeaTest;
 
 namespace ExampleApplications
 {
