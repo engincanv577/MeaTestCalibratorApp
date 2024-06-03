@@ -27,7 +27,7 @@ namespace MeaTestCalibratorApp
             _serialPort.NewLine = "\r\n";                                   // <CR><LF> Is used for RS232
         }
         
-        public enum EacConts
+        public enum Conts
         {
             PACK,
             CNT1,
@@ -58,7 +58,7 @@ namespace MeaTestCalibratorApp
             RECT
         }
 
-        public enum AcPols
+        public enum Pols
         {
             LEAD,
             LAG
@@ -100,7 +100,7 @@ namespace MeaTestCalibratorApp
             X50
         }
 
-        public enum OutpPhasUnits
+        public enum PhasUnits
         {
             DEG,
             COS
@@ -126,7 +126,7 @@ namespace MeaTestCalibratorApp
             R1K
         }
 
-        public enum OutpEnerUnits
+        public enum EnerUnits
         {
             WS,
             WH
@@ -134,9 +134,9 @@ namespace MeaTestCalibratorApp
 
         public enum Channels
         {
-            Ch1 = 1,
-            Ch2 = 2,
-            Ch3 = 3
+            CH1 = 1,
+            CH2 = 2,
+            CH3 = 3
         }
 
         public enum OutpLows
@@ -359,14 +359,14 @@ namespace MeaTestCalibratorApp
         public string OutpLowv() => WriteReadLnSerialIdnChecked("OUTP:LOWV?", false);
         public bool OutpLowc(OutpLows outpLow) => WriteReadLnSerialAnsComp($"OUTP:LOWC(?) {outpLow}", $"{outpLow}", false);
         public string OutpLowc() => WriteReadLnSerialIdnChecked("OUTP:LOWC?", false);
-        public bool OutpPhasUnit(OutpPhasUnits outpPhasUnit) => WriteReadLnSerialAnsComp($"OUTP:UNIT(?) {outpPhasUnit}", $"{outpPhasUnit}", false);
+        public bool OutpPhasUnit(PhasUnits outpPhasUnit) => WriteReadLnSerialAnsComp($"OUTP:UNIT(?) {outpPhasUnit}", $"{outpPhasUnit}", false);
         public string OutpPhasUnit() => WriteReadLnSerialIdnChecked("OUTP:UNIT?", false);
         public bool OutpCurc(OutpCurcs outpCurc) => WriteReadLnSerialAnsComp($"OUTP:CURC(?) {outpCurc}", $"{outpCurc}", false);
         public string OutpCurc() => WriteReadLnSerialIdnChecked("OUTP:CURC?", false);
         public bool OutpSync(OutpSyncs outpSync) => WriteReadLnSerialAnsComp($"OUTP:SYNC(?) {outpSync}", $"{outpSync}", false);
         public string OutpSync() => WriteReadLnSerialIdnChecked("OUTP:SYNC?", false);
         public string OutpSyncLock() => WriteReadLnSerialIdnChecked("OUTP:SYNC:LOCK?", false);
-        public bool OutpEnerUnit(OutpEnerUnits outpEnerUnit) => WriteReadLnSerialAnsComp($"OUTP:ENER:UNIT(?) {outpEnerUnit}", $"{outpEnerUnit}", false);
+        public bool OutpEnerUnit(EnerUnits outpEnerUnit) => WriteReadLnSerialAnsComp($"OUTP:ENER:UNIT(?) {outpEnerUnit}", $"{outpEnerUnit}", false);
         public string OutpEnerUnit() => WriteReadLnSerialIdnChecked("OUTP:ENER:UNIT?", false);
         public bool OutpEnerMVol(bool stat) => stat ? WriteReadLnSerialAnsComp("OUTP:ENER:MVOL(?) 1", "1", false) : WriteReadLnSerialAnsComp("OUTP:ENER:MVOL(?) 0", "0", false);
         public string OutpEnerMVol() => WriteReadLnSerialIdnChecked("OUTP:ENER:MVOL?", false);
@@ -403,7 +403,7 @@ namespace MeaTestCalibratorApp
         public string PacCurr() => WriteReadLnSerialIdnChecked("PAC:CURR?", true);
         public bool PacPhas(float val) => WriteReadLnSerialAnsComp($"PAC:PHAS(?) {val}", $"{val}", true);
         public string PacPhas() => WriteReadLnSerialIdnChecked("PAC:PHAS?", true); // Check this function from document, it has a parameter to execute
-        public bool PacPol(AcPols acPol) => WriteReadLnSerialAnsComp($"PAC:POL(?) {acPol}", $"{acPol}", true); // Check this function from document, it has a parameter to execute
+        public bool PacPol(Pols acPol) => WriteReadLnSerialAnsComp($"PAC:POL(?) {acPol}", $"{acPol}", true); // Check this function from document, it has a parameter to execute
         public string PacPol() => WriteReadLnSerialIdnChecked("PAC:POL?", true);
         public bool PacFreq(uint val) => WriteReadLnSerialAnsComp($"PAC:FREQ(?) {val}", $"{val}", true);
         public string PacFreq() => WriteReadLnSerialIdnChecked("PAC:FREQ?", true);
@@ -427,9 +427,9 @@ namespace MeaTestCalibratorApp
         public string PaciVolt() => WriteReadLnSerialIdnChecked("PACI:VOLT?", true);
         public bool PaciCurr(float val) => WriteReadLnSerialAnsComp($"PACI:CURR(?) {val}", $"{val}", true);
         public string PaciCurr() => WriteReadLnSerialIdnChecked("PACI:CURR?", true);
-        public bool PaciPhas(AcPols acPol) => WriteReadLnSerialAnsComp($"PACI:PHAS(?) {acPol}", $"{acPol}", true);
+        public bool PaciPhas(Pols acPol) => WriteReadLnSerialAnsComp($"PACI:PHAS(?) {acPol}", $"{acPol}", true);
         public string PaciPhas() => WriteReadLnSerialIdnChecked("PACI:PHAS?", true); // Check this function from document, it has a parameter to execute
-        public bool PaciPol(AcPols acPol) => WriteReadLnSerialAnsComp($"PACI:POL(?) {acPol}", $"{acPol}", true); // Check this function from document, it has a parameter to execute
+        public bool PaciPol(Pols acPol) => WriteReadLnSerialAnsComp($"PACI:POL(?) {acPol}", $"{acPol}", true); // Check this function from document, it has a parameter to execute
         public string PaciPol() => WriteReadLnSerialIdnChecked("PACI:POL?", true);
         public bool PaciFreq(uint val) => WriteReadLnSerialAnsComp($"PACI:FREQ(?) {val}", $"{val}", true);
         public string PaciFreq() => WriteReadLnSerialIdnChecked("PACI:FREQ?", true);
@@ -583,11 +583,11 @@ namespace MeaTestCalibratorApp
         public string EacCurr() => WriteReadLnSerialIdnChecked($"EAC:CURR?", true);
         public bool EacCurrPhas(float val) => WriteReadLnSerialAnsComp($"EAC:CURR:PHAS(?) {val}", $"{val}", true); // This command will return different format if (PHAS:UNIT == COS)
         public string EacCurrPhas() => WriteReadLnSerialIdnChecked($"EAC:CURR:PHAS?", true);
-        public bool EacCurrPol(AcPols pols) => WriteReadLnSerialAnsComp($"EAC:POL(?) {pols}", $"{pols}", true);
+        public bool EacCurrPol(Pols pols) => WriteReadLnSerialAnsComp($"EAC:POL(?) {pols}", $"{pols}", true);
         public string EacCurrPol() => WriteReadLnSerialIdnChecked($"EAC:POL?", true);
         public bool EacFreq(uint val) => WriteReadLnSerialAnsComp($"EAC:FREQ(?) {val}", $"{val}", true);
         public string EacFreq() => WriteReadLnSerialIdnChecked($"EAC:FREQ?", true);
-        public bool EacCont(EacConts cont) => WriteReadLnSerialAnsComp($"EAC:CONT(?) {cont}", $"{cont}", false);
+        public bool EacCont(Conts cont) => WriteReadLnSerialAnsComp($"EAC:CONT(?) {cont}", $"{cont}", false);
         public string EacCont() => WriteReadLnSerialIdnChecked($"EAC:CONT?", false);
         public bool EacTime(uint val) => WriteReadLnSerialAnsComp($"EAC:TIME(?) {val}", $"{val}", true);
         public string EacTime() => WriteReadLnSerialIdnChecked($"EAC:TIME?", true);
@@ -612,7 +612,7 @@ namespace MeaTestCalibratorApp
         public string EdcVolt() => WriteReadLnSerialIdnChecked($"EDC:VOLT?", true);
         public bool EdcCurr(float val) => WriteReadLnSerialAnsComp($"EDC:CURR(?) {val}", $"{val}", true);
         public string EdcCurr() => WriteReadLnSerialIdnChecked($"EDC:CURR?", true);
-        public bool EdcCont(EacConts cont) => WriteReadLnSerialAnsComp($"EDC:CONT(?) {cont}", $"{cont}", false);
+        public bool EdcCont(Conts cont) => WriteReadLnSerialAnsComp($"EDC:CONT(?) {cont}", $"{cont}", false);
         public string EdcCont() => WriteReadLnSerialIdnChecked($"EDC:CONT?", false);
         public bool EdcTime(uint val) => WriteReadLnSerialAnsComp($"EDC:TIME(?) {val}", $"{val}", true);
         public string EdcTime() => WriteReadLnSerialIdnChecked($"EDC:TIME?", true);
@@ -641,11 +641,11 @@ namespace MeaTestCalibratorApp
         public string EaciCurr() => WriteReadLnSerialIdnChecked($"EACI:CURR?", true);
         public bool EaciCurrPhas(float val) => WriteReadLnSerialAnsComp($"EACI:CURR:PHAS(?) {val}", $"{val}", true); // This command will return different format if (PHAS:UNIT == COS)
         public string EaciCurrPhas() => WriteReadLnSerialIdnChecked($"EACI:CURR:PHAS?", true);
-        public bool EaciCurrPol(AcPols pols) => WriteReadLnSerialAnsComp($"EACI:POL(?) {pols}", $"{pols}", true);
+        public bool EaciCurrPol(Pols pols) => WriteReadLnSerialAnsComp($"EACI:POL(?) {pols}", $"{pols}", true);
         public string EaciCurrPol() => WriteReadLnSerialIdnChecked($"EACI:POL?", true);
         public bool EaciFreq(uint val) => WriteReadLnSerialAnsComp($"EACI:FREQ(?) {val}", $"{val}", true);
         public string EaciFreq() => WriteReadLnSerialIdnChecked($"EACI:FREQ?", true);
-        public bool EaciCont(EacConts cont) => WriteReadLnSerialAnsComp($"EACI:CONT(?) {cont}", $"{cont}", false);
+        public bool EaciCont(Conts cont) => WriteReadLnSerialAnsComp($"EACI:CONT(?) {cont}", $"{cont}", false);
         public string EaciCont() => WriteReadLnSerialIdnChecked($"EACI:CONT?", false);
         public bool EaciTime(uint val) => WriteReadLnSerialAnsComp($"EACI:TIME(?) {val}", $"{val}", true);
         public string EaciTime() => WriteReadLnSerialIdnChecked($"EACI:TIME?", true);
@@ -670,7 +670,7 @@ namespace MeaTestCalibratorApp
         public string EdciVolt() => WriteReadLnSerialIdnChecked($"EDCI:VOLT?", true);
         public bool EdciCurr(float val) => WriteReadLnSerialAnsComp($"EDCI:CURR(?) {val}", $"{val}", true);
         public string EdciCurr() => WriteReadLnSerialIdnChecked($"EDCI:CURR?", true);
-        public bool EdciCont(EacConts cont) => WriteReadLnSerialAnsComp($"EDCI:CONT(?) {cont}", $"{cont}", false);
+        public bool EdciCont(Conts cont) => WriteReadLnSerialAnsComp($"EDCI:CONT(?) {cont}", $"{cont}", false);
         public string EdciCont() => WriteReadLnSerialIdnChecked($"EDCI:CONT?", false);
         public bool EdciTime(uint val) => WriteReadLnSerialAnsComp($"EDCI:TIME(?) {val}", $"{val}", true);
         public string EdciTime() => WriteReadLnSerialIdnChecked($"EDCI:TIME?", true);
